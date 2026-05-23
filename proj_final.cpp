@@ -5,19 +5,19 @@
 #include <mutex>
 #include "httplib.h"
 #include "json.hpp"   
-#include "vehiculo.h"
+#include "viajes.h"
 
 using namespace std;
 using namespace httplib;
 
-vector<Vehiculo> vehiculos_db;
+vector<Viaje> viajes_db;
 int proximo_id = 1;
 mutex db_mutex;
-const string archivo_datos = "vehiculos.dat";
+const string archivo_datos = "viajes.dat";
 
-void guardar_vehiculos_con_lock_adquirido() {
+void guardar_viajes() {
     json j_array = json::array();
-    for (const auto& v : vehiculos_db) {
+    for (const auto& v : viajes_db) {
         j_array.push_back(v);
     }
 
@@ -32,7 +32,7 @@ void guardar_vehiculos_con_lock_adquirido() {
 }
 
 // Función para cargar los vehículos desde el archivo al iniciar el servidor.
-void cargar_vehiculos() {
+void cargar_viajes() {
     lock_guard<mutex> lock(db_mutex); // Bloquea el mutex para esta operación
 
     ifstream archivo(archivo_datos);
@@ -41,10 +41,10 @@ void cargar_vehiculos() {
             json j_array_leido;
             archivo >> j_array_leido;
             if (j_array_leido.is_array()) {
-                for (const auto& j_vehiculo : j_array_leido) {
-                    // Convierte el objeto JSON a un objeto Vehiculo usando from_json
-                    Vehiculo v = j_vehiculo.get<Vehiculo>();
-                    vehiculos_db.push_back(v);
+                for (const auto& j_viaje : j_array_leido) {
+                    // Convierte el objeto JSON a un objeto viaje usando from_json
+                    Viaje v = j_viaje.get<Viaje>();
+                    viajes_db.push_back(v);
                     // Actualiza proximo_id para asegurar IDs únicos
                     if (v.id >= proximo_id) {
                         proximo_id = v.id + 1;
@@ -66,12 +66,12 @@ void cargar_vehiculos() {
     }
 
     // Asegura que proximo_id sea al menos 1, y mayor que cualquier ID existente.
-    if (vehiculos_db.empty() && proximo_id < 1) {
+    if (viajes_db.empty() && proximo_id < 1) {
         proximo_id = 1;
     }
-    else if (!vehiculos_db.empty()) {
+    else if (!viajes_db.empty()) {
         int max_id = 0;
-        for (const auto& v : vehiculos_db) {
+        for (const auto& v : viajes_db) {
             if (v.id > max_id) max_id = v.id;
         }
         if (proximo_id <= max_id) {
@@ -84,30 +84,30 @@ void cargar_vehiculos() {
 int main(void) {
     Server svr;
 
-    cargar_vehiculos();
+    cargar_viajes();
 
     // Endpoint POST: Crear un nuevo vehículo
-    svr.Post("/vehiculo", [&](const Request& req, Response& res) {
+    svr.Post("/viaje", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
 
         try {
             json j_body = json::parse(req.body);
-            Vehiculo v_nuevo;
+            Viaje v_nuevo;
 
             // Validación básica de campos obligatorios
-            if (!j_body.contains("modelo") || !j_body.contains("descripcion") || !j_body.contains("color") || !j_body.contains("anio")) {
+            if (!j_body.contains("origen") || !j_body.contains("destino") || !j_body.contains("fecha") || !j_body.contains("capacidad")) {
                 res.status = 400; // Bad Request
-                res.set_content("Faltan campos obligatorios: modelo, descripcion, color, anio", "text/plain; charset=utf-8");
+                res.set_content("Faltan campos obligatorios: origen, destino, fecha, capacidad", "text/plain; charset=utf-8");
                 return;
             }
-            from_json(j_body, v_nuevo); // Usa la función from_json de Vehiculo
+            from_json(j_body, v_nuevo); // Usa la función from_json de viaje
 
             lock_guard<mutex> lock(db_mutex); // Protege el acceso a la BD
             v_nuevo.id = proximo_id++; // Asigna un nuevo ID
-            vehiculos_db.push_back(v_nuevo);
-            guardar_vehiculos_con_lock_adquirido(); // Guarda los cambios
+            viajes_db.push_back(v_nuevo);
+            guardar_viajes(); // Guarda la BD actualizada en el archivo
 
             json j_respuesta = v_nuevo; // Convierte el nuevo vehículo a JSON para la respuesta
             res.set_content(j_respuesta.dump(4), "application/json; charset=utf-8");
@@ -128,68 +128,67 @@ int main(void) {
         });
 
     // Endpoint GET: Obtener todos los vehículos
-    svr.Get("/vehiculos", [&](const Request& req, Response& res) {
+    svr.Get("/viajes", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
 
         lock_guard<mutex> lock(db_mutex);
-        json j_array_respuesta = vehiculos_db;
+        json j_array_respuesta = viajes_db;
         res.set_content(j_array_respuesta.dump(4), "application/json; charset=utf-8");
         });
 
     // Endpoint GET: Obtener un vehículo específico por ID
-    svr.Get(R"(/vehiculo/(\d+))", [&](const Request& req, Response& res) {
+    svr.Get(R"(/viaje/(\d+))", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
         // El (\d+) en la ruta es una expresión regular que captura el ID numérico
-        int id_vehiculo = stoi(req.matches[1].str()); // req.matches[1] contiene el ID capturado
+        int id_viaje = stoi(req.matches[1].str()); // req.matches[1] contiene el ID capturado
 
         lock_guard<mutex> lock(db_mutex);
-        auto it = find_if(vehiculos_db.begin(), vehiculos_db.end(),
-            [id_vehiculo](const Vehiculo& v) { return v.id == id_vehiculo; });
+        auto it = find_if(viajes_db.begin(), viajes_db.end(),
+            [id_viaje](const Viaje& v) { return v.id == id_viaje; });
 
-        if (it != vehiculos_db.end()) { // Si se encontró el vehículo
-            json j_vehiculo_respuesta = *it;
-            res.set_content(j_vehiculo_respuesta.dump(4), "application/json; charset=utf-8");
+        if (it != viajes_db.end()) { // Si se encontró el vehículo
+            json j_viaje_respuesta = *it;
+            res.set_content(j_viaje_respuesta.dump(4), "application/json; charset=utf-8");
         }
         else {
             res.status = 404; // Not Found
-            res.set_content("Vehiculo no encontrado", "text/plain; charset=utf-8");
+            res.set_content("viaje no encontrado", "text/plain; charset=utf-8");
         }
         });
 
     // Endpoint PUT: Actualizar un vehículo existente por ID
-    svr.Put(R"(/vehiculo/(\d+))", [&](const Request& req, Response& res) {
+    svr.Put(R"(/viaje/(\d+))", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
 
-        int id_vehiculo = stoi(req.matches[1].str());
+        int id_viaje = stoi(req.matches[1].str());
 
         try {
             json j_actualizacion = json::parse(req.body);
 
             lock_guard<mutex> lock(db_mutex);
-            auto it = find_if(vehiculos_db.begin(), vehiculos_db.end(),
-                [id_vehiculo](const Vehiculo& v) { return v.id == id_vehiculo; });
+            auto it = find_if(viajes_db.begin(), viajes_db.end(),
+                [id_viaje](const Viaje& v) { return v.id == id_viaje; });
 
-            if (it != vehiculos_db.end()) {
+            if (it != viajes_db.end()) {
                 // Actualiza solo los campos presentes en el JSON de la petición
-                if (j_actualizacion.contains("modelo")) it->modelo = j_actualizacion["modelo"].get<string>();
-                if (j_actualizacion.contains("descripcion")) it->descripcion = j_actualizacion["descripcion"].get<string>();
-                if (j_actualizacion.contains("color")) it->color = j_actualizacion["color"].get<string>();
-                if (j_actualizacion.contains("anio")) it->anio = j_actualizacion["anio"].get<int>();
+                if (j_actualizacion.contains("origen")) it->origen = j_actualizacion["origen"].get<string>();
+                if (j_actualizacion.contains("destino")) it->destino = j_actualizacion["destino"].get<string>();
+                if (j_actualizacion.contains("fecha")) it->fecha = j_actualizacion["fecha"].get<string>();
+                if (j_actualizacion.contains("capacidad")) it->capacidad = j_actualizacion["capacidad"].get<int>();
 
-                guardar_vehiculos_con_lock_adquirido();
-
+                guardar_viajes(); // Guarda la BD actualizada en el archivo
                 json j_respuesta = *it; // Devuelve el vehículo actualizado
                 res.set_content(j_respuesta.dump(4), "application/json; charset=utf-8");
             }
             else {
                 res.status = 404;
-                res.set_content("Vehiculo no encontrado", "text/plain; charset=utf-8");
+                res.set_content("Datos del viaje no encontrados", "text/plain; charset=utf-8");
             }
         }
         catch (json::parse_error& e) {
@@ -207,25 +206,25 @@ int main(void) {
         });
 
     // Endpoint DELETE: Eliminar un vehículo por ID
-    svr.Delete(R"(/vehiculo/(\d+))", [&](const Request& req, Response& res) {
+    svr.Delete(R"(/viaje/(\d+))", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
 
-        int id_vehiculo = stoi(req.matches[1].str());
+        int id_viaje = stoi(req.matches[1].str());
 
         lock_guard<mutex> lock(db_mutex);
-        auto it = find_if(vehiculos_db.begin(), vehiculos_db.end(),
-            [id_vehiculo](const Vehiculo& v) { return v.id == id_vehiculo; });
+        auto it = find_if(viajes_db.begin(), viajes_db.end(),
+            [id_viaje](const Viaje& v) { return v.id == id_viaje; });
 
-        if (it != vehiculos_db.end()) {
-            vehiculos_db.erase(it); // Elimina el vehículo del vector
-            guardar_vehiculos_con_lock_adquirido();
+        if (it != viajes_db.end()) {
+            viajes_db.erase(it); // Elimina el vehículo del vector
+            guardar_viajes(); // Guarda la BD actualizada en el archivo
             res.status = 204; // No Content (exito, sin cuerpo de respuesta)
         }
         else {
             res.status = 404;
-            res.set_content("Vehiculo no encontrado", "text/plain; charset=utf-8");
+            res.set_content("Viaje no encontrado o no agendado", "text/plain; charset=utf-8");
         }
         });
 
@@ -249,7 +248,7 @@ int main(void) {
         res.status = 204; // No Content
         });
 
-    cout << "Servidor CRUD de vehiculos iniciando en http://localhost:3000" << endl;
+    cout << "Servidor CRUD de viajes iniciando en http://localhost:3000" << endl;
     svr.listen("0.0.0.0", 3000); // Inicia el servidor para escuchar en el puerto 8080 en todas las interfaces
 
     return 0;

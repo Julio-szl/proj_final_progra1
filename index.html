@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gestión de Vehículos</title>
+  <title>Agenda de Viajes</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     h1 { color: #333; }
@@ -14,29 +14,29 @@
   </style>
 </head>
 <body>
-  <h1>CRUD de Vehículos</h1>
+  <h1>Agenda de Viajes</h1>
 
   <section id="crear">
-    <h2>Crear Vehículo</h2>
+    <h2>Agendar Viaje</h2>
     <form id="form-crear">
-      <input type="text" id="modelo" placeholder="Modelo" required />
-      <input type="text" id="descripcion" placeholder="Descripción" required />
-      <input type="text" id="color" placeholder="Color" required />
-      <input type="number" id="anio" placeholder="Año" required />
-      <button type="submit">Crear</button>
+      <input type="text" id="origen" placeholder="Origen" required/>
+      <input type="text" id="destino" placeholder="Descripción" required />
+      <input type="date" id="fecha" placeholder="Fecha" required />
+      <input type="number" id="capacidad" placeholder="Capacidad" required />
+      <button type="submit">Agendar</button>
     </form>
   </section>
 
   <section id="listar">
-    <h2>Lista de Vehículos</h2>
+    <h2>Agenda de Viajes Pendientes</h2>
     <button id="btn-listar">Refrescar lista</button>
     <table>
       <thead>
         <tr>
-          <th>ID</th><th>Modelo</th><th>Descripción</th><th>Color</th><th>Año</th><th>Acciones</th>
+          <th>Origen</th><th>Descripción</th><th>Fecha</th><th>Capacidad</th><th>Acciones</th>
         </tr>
       </thead>
-      <tbody id="tbody-vehiculos"></tbody>
+      <tbody id="tbody-viajes"></tbody>
     </table>
   </section>
 
@@ -47,43 +47,42 @@
     document.getElementById('form-crear').addEventListener('submit', async e => {
       e.preventDefault();
       const data = {
-        modelo: document.getElementById('modelo').value,
-        descripcion: document.getElementById('descripcion').value,
-        color: document.getElementById('color').value,
-        anio: parseInt(document.getElementById('anio').value)
+        origen: document.getElementById('origen').value,
+        destino: document.getElementById('destino').value,
+        fecha: document.getElementById('fecha').value,
+        capacidad: parseInt(document.getElementById('capacidad').value)
       };
-      const resp = await fetch(`${API}/vehiculo`, {
+      const resp = await fetch(`${API}/viaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       if (resp.ok) {
-        alert('Vehículo creado correctamente');
-        listarVehiculos();
+        alert('Viaje agendado correctamente');
+        listarAgenda();
       } else {
-        alert('Error al crear vehículo');
+        alert('Error al agendar el viaje');
       }
     });
 
     // Listar
-    document.getElementById('btn-listar').addEventListener('click', listarVehiculos);
-    async function listarVehiculos() {
-      const resp = await fetch(`${API}/vehiculos`);
+    document.getElementById('btn-listar').addEventListener('click', listarAgenda);
+    async function listarAgenda() {
+      const resp = await fetch(`${API}/viajes`);
       const lista = await resp.json();
-      const tbody = document.getElementById('tbody-vehiculos');
+      const tbody = document.getElementById('tbody-viajes');
       tbody.innerHTML = '';
       lista.forEach(v => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${v.id}</td>
-          <td>${v.modelo}</td>
-          <td>${v.descripcion}</td>
-          <td>${v.color}</td>
-          <td>${v.anio}</td>
+          <td>${v.origen}</td>
+          <td>${v.destino}</td>
+          <td>${v.fecha}</td>
+          <td>${v.capacidad}</td>
           <td>
             <button onclick="ver(${v.id})">Ver</button>
             <button onclick="editar(${v.id})">Editar</button>
-            <button onclick="eliminar(${v.id})">Eliminar</button>
+            <button onclick="eliminar(${v.id})">Cancelar Viaje</button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -92,52 +91,52 @@
 
     // Ver
     window.ver = async id => {
-      const resp = await fetch(`${API}/vehiculo/${id}`);
+      const resp = await fetch(`${API}/viaje/${id}`);
       if (resp.ok) {
         const v = await resp.json();
         alert(JSON.stringify(v, null, 2));
       } else {
-        alert('Vehículo no encontrado');
+        alert('Viaje no agendado o ya realizado');
       }
     };
 
     // Eliminar
     window.eliminar = async id => {
-      if (!confirm('¿Seguro que desea eliminar el vehículo?')) return;
-      const resp = await fetch(`${API}/vehiculo/${id}`, { method: 'DELETE' });
+      if (!confirm('Seguro que desea cancelar el viaje?')) return;
+      const resp = await fetch(`${API}/viaje/${id}`, { method: 'DELETE' });
       if (resp.ok) {
-        alert('Vehículo eliminado');
-        listarVehiculos();
+        alert('Viaje cancelado exitosamente!');
+        listarAgenda();
       } else {
-        alert('Error al eliminar');
+        alert('Error al cancelar el viaje');
       }
     };
 
     // Editar
     window.editar = async id => {
-      const respGet = await fetch(`${API}/vehiculo/${id}`);
-      if (!respGet.ok) { return alert('No se pudo obtener datos'); }
+      const respGet = await fetch(`${API}/viaje/${id}`);
+      if (!respGet.ok) { return alert('No se pudo obtener los datos del viaje'); }
       const v = await respGet.json();
-      const modelo = prompt('Modelo:', v.modelo);
-      const descripcion = prompt('Descripción:', v.descripcion);
-      const color = prompt('Color:', v.color);
-      const anio = parseInt(prompt('Año:', v.anio));
-      const data = { modelo, descripcion, color, anio };
-      const respPut = await fetch(`${API}/vehiculo/${id}`, {
+      const origen = prompt('origen:', v.origen);
+      const destino = prompt('Descripción:', v.destino);
+      const fecha = prompt('fecha:', v.fecha);
+      const capacidad = parseInt(prompt('Capacidad:', v.capacidad));
+      const data = { origen, destino, fecha, capacidad };
+      const respPut = await fetch(`${API}/viaje/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       if (respPut.ok) {
-        alert('Vehículo actualizado');
-        listarVehiculos();
+        alert('Datos del viaje actualizados correctamente!');
+        listarAgenda();
       } else {
-        alert('Error al actualizar');
+        alert('Error al actualizar los datos');
       }
     };
 
     // Cargar lista al iniciar
-    listarVehiculos();
+    listarAgenda();
   </script>
 </body>
 </html>

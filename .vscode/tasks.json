@@ -15,7 +15,7 @@
                 "-DWINVER=0x0A00",
                 "-g",
                 "-o",
-                "server.exe",
+                "Server_viajes.exe",
 				"-lws2_32"
 			],
 			"options": {
