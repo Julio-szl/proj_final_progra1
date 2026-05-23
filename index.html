@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestión de Vehículos</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    form, table { margin-bottom: 20px; }
+    input, button { padding: 8px; margin: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>CRUD de Vehículos</h1>
+
+  <section id="crear">
+    <h2>Crear Vehículo</h2>
+    <form id="form-crear">
+      <input type="text" id="modelo" placeholder="Modelo" required />
+      <input type="text" id="descripcion" placeholder="Descripción" required />
+      <input type="text" id="color" placeholder="Color" required />
+      <input type="number" id="anio" placeholder="Año" required />
+      <button type="submit">Crear</button>
+    </form>
+  </section>
+
+  <section id="listar">
+    <h2>Lista de Vehículos</h2>
+    <button id="btn-listar">Refrescar lista</button>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Modelo</th><th>Descripción</th><th>Color</th><th>Año</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-vehiculos"></tbody>
+    </table>
+  </section>
+
+  <script>
+    const API = 'http://localhost:3000';
+
+    // Crear
+    document.getElementById('form-crear').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = {
+        modelo: document.getElementById('modelo').value,
+        descripcion: document.getElementById('descripcion').value,
+        color: document.getElementById('color').value,
+        anio: parseInt(document.getElementById('anio').value)
+      };
+      const resp = await fetch(`${API}/vehiculo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (resp.ok) {
+        alert('Vehículo creado correctamente');
+        listarVehiculos();
+      } else {
+        alert('Error al crear vehículo');
+      }
+    });
+
+    // Listar
+    document.getElementById('btn-listar').addEventListener('click', listarVehiculos);
+    async function listarVehiculos() {
+      const resp = await fetch(`${API}/vehiculos`);
+      const lista = await resp.json();
+      const tbody = document.getElementById('tbody-vehiculos');
+      tbody.innerHTML = '';
+      lista.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${v.id}</td>
+          <td>${v.modelo}</td>
+          <td>${v.descripcion}</td>
+          <td>${v.color}</td>
+          <td>${v.anio}</td>
+          <td>
+            <button onclick="ver(${v.id})">Ver</button>
+            <button onclick="editar(${v.id})">Editar</button>
+            <button onclick="eliminar(${v.id})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Ver
+    window.ver = async id => {
+      const resp = await fetch(`${API}/vehiculo/${id}`);
+      if (resp.ok) {
+        const v = await resp.json();
+        alert(JSON.stringify(v, null, 2));
+      } else {
+        alert('Vehículo no encontrado');
+      }
+    };
+
+    // Eliminar
+    window.eliminar = async id => {
+      if (!confirm('¿Seguro que desea eliminar el vehículo?')) return;
+      const resp = await fetch(`${API}/vehiculo/${id}`, { method: 'DELETE' });
+      if (resp.ok) {
+        alert('Vehículo eliminado');
+        listarVehiculos();
+      } else {
+        alert('Error al eliminar');
+      }
+    };
+
+    // Editar
+    window.editar = async id => {
+      const respGet = await fetch(`${API}/vehiculo/${id}`);
+      if (!respGet.ok) { return alert('No se pudo obtener datos'); }
+      const v = await respGet.json();
+      const modelo = prompt('Modelo:', v.modelo);
+      const descripcion = prompt('Descripción:', v.descripcion);
+      const color = prompt('Color:', v.color);
+      const anio = parseInt(prompt('Año:', v.anio));
+      const data = { modelo, descripcion, color, anio };
+      const respPut = await fetch(`${API}/vehiculo/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (respPut.ok) {
+        alert('Vehículo actualizado');
+        listarVehiculos();
+      } else {
+        alert('Error al actualizar');
+      }
+    };
+
+    // Cargar lista al iniciar
+    listarVehiculos();
+  </script>
+</body>
+</html>
