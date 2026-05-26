@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Horizonte — Reservar viaje</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Cormorant Garamond"', 'serif'],
+            sans: ['"DM Sans"', 'sans-serif'],
+          },
+          colors: {
+            sand:  { DEFAULT: '#F5EFE6', dark: '#E8DCCB' },
+            slate: { deep: '#1A1F2E', mid: '#2E3547' },
+            gold:  { DEFAULT: '#C9A96E', light: '#E2C99A', dark: '#A07840' },
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.35;
+    }
+
+    /* Scrollable inner panel only */
+    #panel-right { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #C9A96E33 transparent; }
+    #panel-right::-webkit-scrollbar { width: 4px; }
+    #panel-right::-webkit-scrollbar-thumb { background: #C9A96E44; border-radius: 2px; }
+
+    /* Input focus gold ring */
+    .field:focus {
+      outline: none;
+      border-color: #C9A96E;
+      box-shadow: 0 0 0 1px #C9A96E44;
+    }
+
+    /* Gold line */
+    .gold-line { width: 40px; height: 1px; background: #C9A96E; }
+
+    /* Table row hover */
+    .trow:hover td { background: rgba(201,169,110,0.06); }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* Modal entry animation */
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)     scale(1);    }
+    }
+    .modal-box { animation: modalIn 0.25s ease; }
+
+    /* Staggered form fields */
+    .field-group { opacity: 0; transform: translateY(10px);
+      animation: fieldIn 0.4s ease forwards; }
+    @keyframes fieldIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .field-group:nth-child(1) { animation-delay: 0.05s; }
+    .field-group:nth-child(2) { animation-delay: 0.10s; }
+    .field-group:nth-child(3) { animation-delay: 0.15s; }
+    .field-group:nth-child(4) { animation-delay: 0.20s; }
+    .field-group:nth-child(5) { animation-delay: 0.25s; }
+    .field-group:nth-child(6) { animation-delay: 0.30s; }
+    .field-group:nth-child(7) { animation-delay: 0.35s; }
+
+    /* Action buttons in table */
+    .btn-action { transition: background 0.2s, color 0.2s; }
+  </style>
+</head>
+
+<body class="bg-slate-deep text-sand font-sans antialiased flex h-screen">
+
+  <!-- ═══════════════════════════════════════════
+       LEFT PANEL — decorative image
+  ════════════════════════════════════════════ -->
+  <div class="hidden lg:flex lg:w-2/5 xl:w-1/3 relative flex-shrink-0 flex-col justify-end p-12"
+       style="background: linear-gradient(to bottom, rgba(26,31,46,0.35), rgba(26,31,46,0.75)),
+              url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=900&q=80') center/cover no-repeat;">
+
+    <!-- Back link -->
+    <a href="index.html"
+       class="absolute top-8 left-8 flex items-center gap-2 text-sand/50 text-xs tracking-widest uppercase hover:text-gold transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
+      </svg>
+      Inicio
+    </a>
+
+    <span class="font-display text-2xl tracking-widest text-gold font-light absolute top-8 right-8">HORIZONTE</span>
+
+    <div>
+      <div class="gold-line mb-5"></div>
+      <h2 class="font-display text-5xl font-light leading-tight text-sand mb-4">
+        Tu próxima<br/><em class="italic text-gold">aventura</em><br/>comienza aquí.
+      </h2>
+      <p class="text-sand/50 text-sm font-light leading-relaxed max-w-xs">
+        Completa el formulario y nuestro equipo se encargará de preparar cada detalle de tu viaje soñado.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       RIGHT PANEL — form + table
+  ════════════════════════════════════════════ -->
+  <div id="panel-right" class="flex-1 flex flex-col h-full py-10 px-8 md:px-14">
+
+    <!-- Mobile header -->
+    <div class="flex items-center justify-between mb-8 lg:hidden">
+      <a href="index.html" class="text-sand/50 text-xs tracking-widest uppercase hover:text-gold transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
+        </svg>
+        Inicio
+      </a>
+      <span class="font-display text-xl tracking-widest text-gold">HORIZONTE</span>
+    </div>
+
+    <!-- Form header -->
+    <div class="mb-8">
+      <p class="text-gold text-xs tracking-[0.3em] uppercase mb-2">Nueva reserva</p>
+      <div class="gold-line mb-4"></div>
+      <h1 class="font-display text-4xl font-light text-sand">Agendar viaje</h1>
+    </div>
+
+    <!-- ── FORM ── -->
+    <form id="form-crear" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 mb-10">
+
+      <div class="field-group flex flex-col gap-1">
+        <label class="text-sand/50 text-xs tracking-widest uppercase">Nombre completo</label>
+        <input id="nombre" type="text" placeholder="Ana García" required
+               class="field bg-slate-mid border border-sand/10 text-sand placeholder-sand/20 px-4 py-3 text-sm rounded-sm"/>
+      </div>
+
+      <div class="field-group flex flex-col gap-1">
+        <label class="text-sand/50 text-xs tracking-widest uppercase">Correo electrónico</label>
+        <input id="email" type="email" placeholder="ana@correo.com" required
+               class="field bg-slate-mid border border-sand/10 text-sand placeholder-sand/20 px-4 py-3 text-sm rounded-sm"/>
+      </div>
+
+      <div class="field-group flex flex-col gap-1">
+        <label class="text-sand/50 text-xs tracking-widest uppercase">Ciudad de origen</label>
+        <input id="origen" type="text" placeholder="Ciudad de Guatemala" required
+               class="field bg-slate-mid border border-sand/10 text-sand placeholder-sand/20 px-4 py-3 text-sm rounded-sm"/>
+      </div>
+
+      <div class="field-group flex flex-col gap-1">
+        <label class="text-sand/50 text-xs tracking-widest uppercase">Destino</label>
+        <input id="destino" type="text" placeholder="Tokio, Japón" required
+               class="field bg-slate-mid border border-sand/10 text-sand placeholder-sand/20 px-4 py-3 text-sm rounded-sm"/>
+      </div>
+
+      <div class="field-group flex flex-col gap-1">
+        <label class="text-sand/50 text-xs tracking-widest uppercase">Fecha de salida</label>
+        <input id="fecha" type="date" required
+               class="field bg-slate-mid border border-sand/10 text-sand px-4 py-3 text-sm rounded-sm"/>
+      </div>
+
+      <div class="field-group flex flex-col gap-1">
+        <label class="text-sand/50 text-xs tracking-widest uppercase">N.° de pasajeros</label>
+        <input id="pasajeros" type="number" min="1" max="20" placeholder="1" required
+               class="field bg-slate-mid border border-sand/10 text-sand placeholder-sand/20 px-4 py-3 text-sm rounded-sm"/>
+      </div>
+
+      <div class="field-group sm:col-span-2 flex gap-4 pt-2">
+        <button type="submit"
+                class="flex-1 bg-gold text-slate-deep text-sm tracking-widest uppercase py-3.5 hover:bg-gold-light transition-all duration-300 font-medium">
+          Confirmar reserva
+        </button>
+        <button type="button" id="btn-listar"
+                class="flex-1 border border-sand/20 text-sand/70 text-sm tracking-widest uppercase py-3.5 hover:border-gold hover:text-gold transition-all duration-300">
+          Ver reservas
+        </button>
+      </div>
+    </form>
+
+    <!-- ── TABLE ── -->
+    <div id="tabla-section" class="flex-1">
+      <div class="flex items-center gap-4 mb-4">
+        <div class="gold-line"></div>
+        <h2 class="font-display text-2xl font-light text-sand">Reservas agendadas</h2>
+      </div>
+
+      <div class="overflow-x-auto rounded-sm border border-sand/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-sand/10 bg-slate-mid/60">
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal">Nombre</th>
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal hidden md:table-cell">Email</th>
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal">Origen</th>
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal">Destino</th>
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal hidden lg:table-cell">Fecha</th>
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal hidden lg:table-cell">Pax</th>
+              <th class="text-left px-4 py-3 text-sand/40 text-xs tracking-widest uppercase font-normal">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-viajes">
+            <tr>
+              <td colspan="7" class="text-center py-10 text-sand/30 text-sm italic font-display text-lg">
+                Sin reservas aún...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /panel-right -->
+
+
+  <!-- ═══════════════════════════════════════════
+       MODALS
+  ════════════════════════════════════════════ -->
+
+  <!-- ── Modal: Éxito genérico ── -->
+  <div id="modal-success" class="hidden fixed inset-0 z-50 modal-backdrop bg-slate-deep/70 flex items-center justify-center px-4">
+    <div class="modal-box bg-slate-mid border border-sand/10 rounded-sm p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-14 h-14 rounded-full border border-gold/40 flex items-center justify-center mx-auto mb-5"
+           style="background: linear-gradient(135deg,#C9A96E18,#C9A96E08)">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+      </div>
+      <div class="gold-line mx-auto mb-4"></div>
+      <h3 class="font-display text-3xl font-light text-sand mb-2" id="modal-success-title">¡Reserva confirmada!</h3>
+      <p class="text-sand/50 text-sm mb-6" id="modal-success-msg">Tu viaje ha sido agendado correctamente.</p>
+      <button onclick="closeModal('modal-success')"
+              class="w-full bg-gold text-slate-deep text-xs tracking-widest uppercase py-3 hover:bg-gold-light transition-all font-medium">
+        Aceptar
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Modal: Error genérico ── -->
+  <div id="modal-error" class="hidden fixed inset-0 z-50 modal-backdrop bg-slate-deep/70 flex items-center justify-center px-4">
+    <div class="modal-box bg-slate-mid border border-red-900/40 rounded-sm p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-14 h-14 rounded-full border border-red-500/30 flex items-center justify-center mx-auto mb-5 bg-red-900/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+        </svg>
+      </div>
+      <h3 class="font-display text-3xl font-light text-sand mb-2">Algo salió mal</h3>
+      <p class="text-sand/50 text-sm mb-6" id="modal-error-msg">Error al procesar la solicitud.</p>
+      <button onclick="closeModal('modal-error')"
+              class="w-full border border-red-500/40 text-red-400 text-xs tracking-widest uppercase py-3 hover:bg-red-900/20 transition-all">
+        Cerrar
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Modal: Ver detalle de viaje ── -->
+  <div id="modal-ver" class="hidden fixed inset-0 z-50 modal-backdrop bg-slate-deep/70 flex items-center justify-center px-4">
+    <div class="modal-box bg-slate-mid border border-sand/10 rounded-sm p-8 max-w-md w-full shadow-2xl">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <p class="text-gold text-xs tracking-widest uppercase mb-1">Detalle</p>
+          <div class="gold-line"></div>
+        </div>
+        <button onclick="closeModal('modal-ver')" class="text-sand/30 hover:text-sand transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <h3 class="font-display text-3xl font-light text-sand mb-6">Información del viaje</h3>
+      <div id="modal-ver-content" class="space-y-3"></div>
+      <button onclick="closeModal('modal-ver')"
+              class="mt-6 w-full border border-sand/20 text-sand/60 text-xs tracking-widest uppercase py-3 hover:border-gold hover:text-gold transition-all">
+        Cerrar
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Modal: Confirmar cancelación ── -->
+  <div id="modal-confirmar" class="hidden fixed inset-0 z-50 modal-backdrop bg-slate-deep/70 flex items-center justify-center px-4">
+    <div class="modal-box bg-slate-mid border border-sand/10 rounded-sm p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-14 h-14 rounded-full border border-gold/30 flex items-center justify-center mx-auto mb-5"
+           style="background: linear-gradient(135deg,#C9A96E12,#C9A96E06)">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+        </svg>
+      </div>
+      <div class="gold-line mx-auto mb-4"></div>
+      <h3 class="font-display text-3xl font-light text-sand mb-2">Cancelar viaje</h3>
+      <p class="text-sand/50 text-sm mb-6">¿Estás seguro de que deseas cancelar esta reserva? Esta acción no se puede deshacer.</p>
+      <div class="flex gap-3">
+        <button onclick="closeModal('modal-confirmar')"
+                class="flex-1 border border-sand/20 text-sand/60 text-xs tracking-widest uppercase py-3 hover:border-sand/40 transition-all">
+          Mantener
+        </button>
+        <button id="btn-confirmar-eliminar"
+                class="flex-1 bg-red-900/60 border border-red-700/40 text-red-300 text-xs tracking-widest uppercase py-3 hover:bg-red-900/80 transition-all">
+          Sí, cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: Editar viaje ── -->
+  <div id="modal-editar" class="hidden fixed inset-0 z-50 modal-backdrop bg-slate-deep/70 flex items-center justify-center px-4">
+    <div class="modal-box bg-slate-mid border border-sand/10 rounded-sm p-8 max-w-lg w-full shadow-2xl">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <p class="text-gold text-xs tracking-widest uppercase mb-1">Modificar reserva</p>
+          <div class="gold-line"></div>
+        </div>
+        <button onclick="closeModal('modal-editar')" class="text-sand/30 hover:text-sand transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <h3 class="font-display text-3xl font-light text-sand mb-6">Editar viaje</h3>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-sand/40 text-xs tracking-widest uppercase">Nombre</label>
+          <input id="edit-nombre" type="text" class="field bg-slate-deep border border-sand/10 text-sand px-3 py-2.5 text-sm rounded-sm"/>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sand/40 text-xs tracking-widest uppercase">Email</label>
+          <input id="edit-email" type="email" class="field bg-slate-deep border border-sand/10 text-sand px-3 py-2.5 text-sm rounded-sm"/>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sand/40 text-xs tracking-widest uppercase">Origen</label>
+          <input id="edit-origen" type="text" class="field bg-slate-deep border border-sand/10 text-sand px-3 py-2.5 text-sm rounded-sm"/>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sand/40 text-xs tracking-widest uppercase">Destino</label>
+          <input id="edit-destino" type="text" class="field bg-slate-deep border border-sand/10 text-sand px-3 py-2.5 text-sm rounded-sm"/>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sand/40 text-xs tracking-widest uppercase">Fecha</label>
+          <input id="edit-fecha" type="date" class="field bg-slate-deep border border-sand/10 text-sand px-3 py-2.5 text-sm rounded-sm"/>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-sand/40 text-xs tracking-widest uppercase">Pasajeros</label>
+          <input id="edit-pasajeros" type="number" min="1" max="20" class="field bg-slate-deep border border-sand/10 text-sand px-3 py-2.5 text-sm rounded-sm"/>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeModal('modal-editar')"
+                class="flex-1 border border-sand/20 text-sand/60 text-xs tracking-widest uppercase py-3 hover:border-sand/40 transition-all">
+          Cancelar
+        </button>
+        <button id="btn-guardar-edicion"
+                class="flex-1 bg-gold text-slate-deep text-xs tracking-widest uppercase py-3 hover:bg-gold-light transition-all font-medium">
+          Guardar cambios
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       JAVASCRIPT
+  ════════════════════════════════════════════ -->
+  <script>
+    const API = 'http://localhost:3000';
+
+    /* ── Modal helpers ── */
+    function openModal(id)  {
+      const el = document.getElementById(id);
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+    }
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    }
+
+    function showSuccess(title = '¡Listo!', msg = 'Operación realizada correctamente.') {
+      document.getElementById('modal-success-title').textContent = title;
+      document.getElementById('modal-success-msg').textContent = msg;
+      openModal('modal-success');
+    }
+
+    function showError(msg = 'Ocurrió un error inesperado.') {
+      document.getElementById('modal-error-msg').textContent = msg;
+      openModal('modal-error');
+    }
+
+    /* Close modals clicking backdrop */
+    ['modal-success','modal-error','modal-ver','modal-confirmar','modal-editar'].forEach(id => {
+      document.getElementById(id).addEventListener('click', function(e) {
+        if (e.target === this) closeModal(id);
+      });
+    });
+
+    /* ── Crear ── */
+    document.getElementById('form-crear').addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = {
+        nombre:    document.getElementById('nombre').value,
+        email:     document.getElementById('email').value,
+        origen:    document.getElementById('origen').value,
+        destino:   document.getElementById('destino').value,
+        fecha:     document.getElementById('fecha').value,
+        pasajeros: parseInt(document.getElementById('pasajeros').value)
+      };
+      try {
+        const resp = await fetch(`${API}/viaje`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+          e.target.reset();
+          showSuccess('¡Reserva confirmada!', `Tu viaje a ${data.destino} ha sido agendado correctamente.`);
+          listarAgenda();
+        } else {
+          showError('No se pudo agendar el viaje. Verifica los datos e intenta de nuevo.');
+        }
+      } catch {
+        showError('No se pudo conectar con el servidor. Asegúrate de que el backend esté corriendo.');
+      }
+    });
+
+    /* ── Listar ── */
+    document.getElementById('btn-listar').addEventListener('click', listarAgenda);
+
+    async function listarAgenda() {
+      try {
+        const resp = await fetch(`${API}/viajes`);
+        const lista = await resp.json();
+        const tbody = document.getElementById('tbody-viajes');
+        tbody.innerHTML = '';
+
+        if (!lista.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-sand/30 text-lg italic font-display">Sin reservas aún...</td></tr>`;
+          return;
+        }
+
+        lista.forEach(v => {
+          const tr = document.createElement('tr');
+          tr.className = 'trow border-b border-sand/5 transition-colors';
+          tr.innerHTML = `
+            <td class="px-4 py-3 text-sand/80">${v.nombre}</td>
+            <td class="px-4 py-3 text-sand/50 hidden md:table-cell text-xs">${v.email}</td>
+            <td class="px-4 py-3 text-sand/70">${v.origen}</td>
+            <td class="px-4 py-3 text-gold font-medium">${v.destino}</td>
+            <td class="px-4 py-3 text-sand/50 hidden lg:table-cell text-xs">${v.fecha}</td>
+            <td class="px-4 py-3 text-sand/50 hidden lg:table-cell text-center">${v.pasajeros}</td>
+            <td class="px-4 py-3">
+              <div class="flex gap-2">
+                <button onclick="ver(${v.id})"
+                  class="btn-action border border-sand/20 text-sand/50 text-xs tracking-wider uppercase px-3 py-1.5 hover:border-gold hover:text-gold">
+                  Ver
+                </button>
+                <button onclick="editar(${v.id})"
+                  class="btn-action border border-sand/20 text-sand/50 text-xs tracking-wider uppercase px-3 py-1.5 hover:border-gold hover:text-gold">
+                  Editar
+                </button>
+                <button onclick="eliminar(${v.id})"
+                  class="btn-action border border-red-800/30 text-red-400/60 text-xs tracking-wider uppercase px-3 py-1.5 hover:border-red-500/50 hover:text-red-400">
+                  Cancelar
+                </button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch {
+        showError('No se pudo obtener la lista de viajes del servidor.');
+      }
+    }
+
+    /* ── Ver ── */
+    window.ver = async id => {
+      try {
+        const resp = await fetch(`${API}/viaje/${id}`);
+        if (!resp.ok) { showError('Viaje no encontrado o ya realizado.'); return; }
+        const v = await resp.json();
+        const fields = [
+          { label: 'Nombre',    value: v.nombre },
+          { label: 'Email',     value: v.email  },
+          { label: 'Origen',    value: v.origen },
+          { label: 'Destino',   value: v.destino },
+          { label: 'Fecha',     value: v.fecha  },
+          { label: 'Pasajeros', value: v.pasajeros },
+        ];
+        document.getElementById('modal-ver-content').innerHTML = fields.map(f => `
+          <div class="flex justify-between items-center py-2.5 border-b border-sand/8">
+            <span class="text-sand/40 text-xs tracking-widest uppercase">${f.label}</span>
+            <span class="text-sand text-sm">${f.value}</span>
+          </div>
+        `).join('');
+        openModal('modal-ver');
+      } catch {
+        showError('No se pudo conectar con el servidor.');
+      }
+    };
+
+    /* ── Eliminar ── */
+    window.eliminar = id => {
+      openModal('modal-confirmar');
+      document.getElementById('btn-confirmar-eliminar').onclick = async () => {
+        closeModal('modal-confirmar');
+        try {
+          const resp = await fetch(`${API}/viaje/${id}`, { method: 'DELETE' });
+          if (resp.ok) {
+            showSuccess('Viaje cancelado', 'La reserva ha sido eliminada exitosamente.');
+            listarAgenda();
+          } else {
+            showError('No se pudo cancelar el viaje. Intenta de nuevo.');
+          }
+        } catch {
+          showError('No se pudo conectar con el servidor.');
+        }
+      };
+    };
+
+    /* ── Editar ── */
+    window.editar = async id => {
+      try {
+        const respGet = await fetch(`${API}/viaje/${id}`);
+        if (!respGet.ok) { showError('No se pudieron obtener los datos del viaje.'); return; }
+        const v = await respGet.json();
+
+        document.getElementById('edit-nombre').value    = v.nombre;
+        document.getElementById('edit-email').value     = v.email;
+        document.getElementById('edit-origen').value    = v.origen;
+        document.getElementById('edit-destino').value   = v.destino;
+        document.getElementById('edit-fecha').value     = v.fecha;
+        document.getElementById('edit-pasajeros').value = v.pasajeros;
+
+        openModal('modal-editar');
+
+        document.getElementById('btn-guardar-edicion').onclick = async () => {
+          const data = {
+            nombre:    document.getElementById('edit-nombre').value,
+            email:     document.getElementById('edit-email').value,
+            origen:    document.getElementById('edit-origen').value,
+            destino:   document.getElementById('edit-destino').value,
+            fecha:     document.getElementById('edit-fecha').value,
+            pasajeros: parseInt(document.getElementById('edit-pasajeros').value),
+          };
+          try {
+            const respPut = await fetch(`${API}/viaje/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            closeModal('modal-editar');
+            if (respPut.ok) {
+              showSuccess('Reserva actualizada', 'Los datos del viaje han sido modificados correctamente.');
+              listarAgenda();
+            } else {
+              showError('No se pudo actualizar el viaje.');
+            }
+          } catch {
+            closeModal('modal-editar');
+            showError('No se pudo conectar con el servidor.');
+          }
+        };
+      } catch {
+        showError('No se pudo conectar con el servidor.');
+      }
+    };
+
+    /* Cargar lista al iniciar */
+    listarAgenda();
+  </script>
+
+</body>
+</html>
