@@ -31,7 +31,7 @@ void guardar_viajes() {
     }
 }
 
-// Función para cargar los vehículos desde el archivo al iniciar el servidor.
+// Función para cargar los viajes desde el archivo al iniciar el servidor.
 void cargar_viajes() {
     lock_guard<mutex> lock(db_mutex); // Bloquea el mutex para esta operación
 
@@ -51,7 +51,7 @@ void cargar_viajes() {
                     }
                 }
             }
-            cout << "Vehículos cargados desde " << archivo_datos << endl;
+            cout << "Viajes cargados desde " << archivo_datos << endl;
         }
         catch (json::parse_error& e) {
             cerr << "Error al parsear JSON desde " << archivo_datos << ": " << e.what() << endl;
@@ -86,7 +86,7 @@ int main(void) {
 
     cargar_viajes();
 
-    // Endpoint POST: Crear un nuevo vehículo
+    // Endpoint POST: Crear un nuevo viaje
     svr.Post("/viaje", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -97,9 +97,9 @@ int main(void) {
             Viaje v_nuevo;
 
             // Validación básica de campos obligatorios
-            if (!j_body.contains("origen") || !j_body.contains("destino") || !j_body.contains("fecha") || !j_body.contains("capacidad")) {
+            if (!j_body.contains("nombre") || !j_body.contains("email") || !j_body.contains("origen") || !j_body.contains("destino") || !j_body.contains("fecha") || !j_body.contains("pasajeros")) {
                 res.status = 400; // Bad Request
-                res.set_content("Faltan campos obligatorios: origen, destino, fecha, capacidad", "text/plain; charset=utf-8");
+                res.set_content("Faltan campos obligatorios: nombre, email, origen, destino, fecha, pasajeros", "text/plain; charset=utf-8");
                 return;
             }
             from_json(j_body, v_nuevo); // Usa la función from_json de viaje
@@ -109,7 +109,7 @@ int main(void) {
             viajes_db.push_back(v_nuevo);
             guardar_viajes(); // Guarda la BD actualizada en el archivo
 
-            json j_respuesta = v_nuevo; // Convierte el nuevo vehículo a JSON para la respuesta
+            json j_respuesta = v_nuevo; // Convierte el nuevo viaje a JSON para la respuesta
             res.set_content(j_respuesta.dump(4), "application/json; charset=utf-8");
             res.status = 201; // 201 Created
         }
@@ -127,7 +127,7 @@ int main(void) {
         }
         });
 
-    // Endpoint GET: Obtener todos los vehículos
+    // Endpoint GET: Obtener todos los viajes
     svr.Get("/viajes", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -138,7 +138,7 @@ int main(void) {
         res.set_content(j_array_respuesta.dump(4), "application/json; charset=utf-8");
         });
 
-    // Endpoint GET: Obtener un vehículo específico por ID
+    // Endpoint GET: Obtener un viaje específico por ID
     svr.Get(R"(/viaje/(\d+))", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -150,7 +150,7 @@ int main(void) {
         auto it = find_if(viajes_db.begin(), viajes_db.end(),
             [id_viaje](const Viaje& v) { return v.id == id_viaje; });
 
-        if (it != viajes_db.end()) { // Si se encontró el vehículo
+        if (it != viajes_db.end()) { // Si se encontró el viaje
             json j_viaje_respuesta = *it;
             res.set_content(j_viaje_respuesta.dump(4), "application/json; charset=utf-8");
         }
@@ -160,7 +160,7 @@ int main(void) {
         }
         });
 
-    // Endpoint PUT: Actualizar un vehículo existente por ID
+    // Endpoint PUT: Actualizar un viaje existente por ID
     svr.Put(R"(/viaje/(\d+))", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -177,13 +177,15 @@ int main(void) {
 
             if (it != viajes_db.end()) {
                 // Actualiza solo los campos presentes en el JSON de la petición
+                if (j_actualizacion.contains("nombre")) it->nombre = j_actualizacion["nombre"].get<string>();
+                if (j_actualizacion.contains("email")) it->email = j_actualizacion["email"].get<string>();
                 if (j_actualizacion.contains("origen")) it->origen = j_actualizacion["origen"].get<string>();
                 if (j_actualizacion.contains("destino")) it->destino = j_actualizacion["destino"].get<string>();
                 if (j_actualizacion.contains("fecha")) it->fecha = j_actualizacion["fecha"].get<string>();
-                if (j_actualizacion.contains("capacidad")) it->capacidad = j_actualizacion["capacidad"].get<int>();
+                if (j_actualizacion.contains("pasajeros")) it->pasajeros = j_actualizacion["pasajeros"].get<int>();
 
                 guardar_viajes(); // Guarda la BD actualizada en el archivo
-                json j_respuesta = *it; // Devuelve el vehículo actualizado
+                json j_respuesta = *it; // Devuelve el viaje actualizado
                 res.set_content(j_respuesta.dump(4), "application/json; charset=utf-8");
             }
             else {
@@ -205,7 +207,7 @@ int main(void) {
         }
         });
 
-    // Endpoint DELETE: Eliminar un vehículo por ID
+    // Endpoint DELETE: Eliminar un viaje por ID
     svr.Delete(R"(/viaje/(\d+))", [&](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -218,7 +220,7 @@ int main(void) {
             [id_viaje](const Viaje& v) { return v.id == id_viaje; });
 
         if (it != viajes_db.end()) {
-            viajes_db.erase(it); // Elimina el vehículo del vector
+            viajes_db.erase(it); // Elimina el viaje del vector
             guardar_viajes(); // Guarda la BD actualizada en el archivo
             res.status = 204; // No Content (exito, sin cuerpo de respuesta)
         }
@@ -249,7 +251,7 @@ int main(void) {
         });
 
     cout << "Servidor CRUD de viajes iniciando en http://localhost:3000" << endl;
-    svr.listen("0.0.0.0", 3000); // Inicia el servidor para escuchar en el puerto 8080 en todas las interfaces
+    svr.listen("0.0.0.0", 3000); // Inicia el servidor para escuchar en el puerto 3000 en todas las interfaces
 
     return 0;
 }

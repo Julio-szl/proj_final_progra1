@@ -1,9 +1,11 @@
 [
     {
         "id": 2,
-        "origen": "Pana",
-        "destino": "Viaje",
+        "nombre": "Juan Emilio",
+        "email": "juanemilio@123.com",
+        "origen": "Panajachel",
+        "destino": "Traslado",
         "fecha": "2026-08-20",
-        "capacidad": 5
+        "pasajeros": 2
     }
 ]
