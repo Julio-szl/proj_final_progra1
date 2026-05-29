@@ -230,19 +230,6 @@ int main(void) {
         }
         });
 
-    svr.Get("/", [](const Request& req, Response& res) {
-        ifstream file("index.html");
-        if (file.is_open()) {
-            string content((istreambuf_iterator<char>(file)),
-                istreambuf_iterator<char>());
-            res.set_content(content, "text/html; charset=utf-8");
-        }
-        else {
-            res.status = 404;
-            res.set_content("index.html no encontrado", "text/plain");
-        }
-        });
-
     svr.Options(R"(.*)", [](const Request& req, Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
